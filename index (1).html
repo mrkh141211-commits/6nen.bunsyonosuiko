@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名編集者！！ 重版出来をめざせ！</title>
+<style>
+  :root{
+    --ink:#20303a;
+    --paper:#fbf7ee;
+    --card:#ffffff;
+    --line:#d8cfbd;
+    --lv1:#6fa8dc; --lv2:#5bb98c; --lv3:#e6a94c; --lv4:#d96a4a; --lv5:#9b59b6;
+    --shadow: 0 2px 0 rgba(32,48,58,.08);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+    color:var(--ink); background:var(--paper);
+    -webkit-text-size-adjust:100%;
+  }
+  header{
+    background:var(--ink); color:#fdf6e3; padding:14px 18px;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  header .logo{font-size:1.5rem; font-weight:800; letter-spacing:.04em}
+  header .logo .mag{display:inline-block; transform:rotate(-12deg)}
+  header .sub{font-size:.85rem; opacity:.8}
+  .tabs{display:flex; gap:6px; margin-left:auto; flex-wrap:wrap}
+  .tabs button{
+    font:inherit; font-size:.9rem; padding:7px 14px; border:none; border-radius:999px;
+    background:rgba(255,255,255,.15); color:#fdf6e3; cursor:pointer;
+  }
+  .tabs button.on{background:#fdf6e3; color:var(--ink); font-weight:700}
+  main{max-width:900px; margin:0 auto; padding:18px}
+  .panel{display:none}
+  .panel.on{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+
+  .add-box{
+    display:none; margin-top:16px; background:#f2f8f4; border:2px solid #5bb98c;
+    border-radius:14px; padding:14px 16px;
+  }
+  .add-box.on{display:block}
+  .add-head{font-weight:800; color:#2b7a55; margin-bottom:4px}
+  .add-lead{font-size:.85rem; color:#5a7a68; line-height:1.6; margin-bottom:10px}
+  .add-box textarea{
+    width:100%; font:inherit; padding:10px; border:2px solid #bfe0cd;
+    border-radius:10px; resize:vertical; min-height:70px; line-height:1.8; background:#fff;
+  }
+
+  .doc-switch{display:flex; gap:8px; margin-bottom:12px}
+  .doc-switch button{
+    font:inherit; font-weight:700; font-size:.9rem; cursor:pointer;
+    padding:9px 16px; border-radius:12px; border:2px solid var(--line);
+    background:var(--card); color:#8a7f6c;
+  }
+  .doc-switch button.on{background:var(--ink); color:#fdf6e3; border-color:var(--ink)}
+
+  .team-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px}
+  .team-row label{font-weight:700; font-size:.95rem}
+  .team-row input{
+    font:inherit; padding:8px 12px; border:2px solid var(--line); border-radius:10px;
+    background:var(--card); min-width:160px;
+  }
+  .score-badge{
+    margin-left:auto; background:var(--ink); color:#fdf6e3; font-weight:800;
+    padding:8px 16px; border-radius:12px; font-size:1.1rem;
+  }
+  .score-badge span{font-size:1.5rem}
+
+  .doc{
+    background:var(--card); border:2px solid var(--line); border-radius:16px;
+    padding:22px 20px; box-shadow:var(--shadow); line-height:2.1; font-size:1.05rem;
+    position:relative;
+  }
+  .doc .title{font-weight:800; margin-bottom:8px; font-size:1.05rem}
+  .doc .lead{font-size:.85rem; color:#7a6f5c; margin-bottom:14px; line-height:1.6}
+  .chunk{
+    cursor:pointer; border-radius:6px; padding:2px 3px; margin:0 -1px;
+    transition:background .12s;
+  }
+  .chunk:hover{background:#fce9e4}
+  .chunk.found{
+    background:#fff3f0;
+    border-bottom:3px solid #d62828;
+    box-shadow: 0 2px 0 -1px #d62828;
+  }
+  .chunk.found::after{content:"✍"; color:#d62828; font-size:.8em; margin:0 2px}
+
+  .hint{font-size:.85rem; color:#7a6f5c; margin-top:10px}
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(32,48,58,.45); display:none;
+    align-items:center; justify-content:center; padding:16px; z-index:50;
+  }
+  .overlay.on{display:flex}
+  .modal{
+    background:var(--card); border-radius:18px; padding:20px; max-width:440px; width:100%;
+    box-shadow:0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal h3{margin:0 0 4px; font-size:1.1rem}
+  .modal .q{font-size:.85rem; color:#7a6f5c; margin-bottom:14px; line-height:1.6}
+  .modal label{display:block; font-weight:700; font-size:.9rem; margin:12px 0 6px}
+  .modal textarea{
+    width:100%; font:inherit; padding:10px; border:2px solid var(--line);
+    border-radius:10px; resize:vertical; min-height:56px; line-height:1.6;
+  }
+  .lv-picker{display:flex; gap:6px; flex-wrap:wrap}
+  .lv-picker button{
+    font:inherit; font-weight:700; cursor:pointer; border:2px solid var(--line);
+    background:var(--card); border-radius:10px; padding:8px 10px; font-size:.82rem;
+    flex:1 1 auto; min-width:0;
+  }
+  .lv-picker button.sel{color:#fff; border-color:transparent}
+  .lv-picker button[data-lv="1"].sel{background:var(--lv1)}
+  .lv-picker button[data-lv="2"].sel{background:var(--lv2)}
+  .lv-picker button[data-lv="3"].sel{background:var(--lv3)}
+  .lv-picker button[data-lv="4"].sel{background:var(--lv4)}
+  .lv-picker button[data-lv="5"].sel{background:var(--lv5)}
+  .modal .actions{display:flex; gap:8px; margin-top:18px}
+  .btn{
+    font:inherit; font-weight:700; cursor:pointer; border:none; border-radius:10px;
+    padding:11px 16px; flex:1;
+  }
+  .btn.primary{background:var(--ink); color:#fdf6e3}
+  .btn.ghost{background:#eee5d3; color:var(--ink)}
+  .btn.mini{flex:none; padding:6px 12px; font-size:.82rem}
+
+  /* card list */
+  .found-list{margin-top:16px; display:flex; flex-direction:column; gap:8px}
+  .found-item{
+    background:var(--card); border:2px solid var(--line); border-radius:12px;
+    padding:10px 12px; display:flex; gap:10px; align-items:flex-start;
+  }
+  .lv-chip{
+    flex:none; font-weight:800; color:#fff; border-radius:8px; padding:4px 9px;
+    font-size:.8rem; white-space:nowrap;
+  }
+  .lv-chip[data-lv="1"]{background:var(--lv1)}
+  .lv-chip[data-lv="2"]{background:var(--lv2)}
+  .lv-chip[data-lv="3"]{background:var(--lv3)}
+  .lv-chip[data-lv="4"]{background:var(--lv4)}
+  .lv-chip[data-lv="5"]{background:var(--lv5)}
+  .found-item .body{flex:1; min-width:0}
+  .found-item .quote{font-weight:700; font-size:.9rem}
+  .found-item .why{font-size:.85rem; color:#5a5040; margin-top:3px; line-height:1.5}
+  .found-item .fix{font-size:.85rem; color:#2b6a4a; margin-top:3px; line-height:1.5}
+  .found-item .del{flex:none; background:none; border:none; cursor:pointer; color:#b9a; font-size:1.1rem}
+
+  /* level guide */
+  .lv-guide{display:flex; flex-direction:column; gap:10px}
+  .lv-row{
+    background:var(--card); border:2px solid var(--line); border-radius:14px;
+    padding:12px 14px; border-left-width:10px;
+  }
+  .lv-row[data-lv="1"]{border-left-color:var(--lv1)}
+  .lv-row[data-lv="2"]{border-left-color:var(--lv2)}
+  .lv-row[data-lv="3"]{border-left-color:var(--lv3)}
+  .lv-row[data-lv="4"]{border-left-color:var(--lv4)}
+  .lv-row[data-lv="5"]{border-left-color:var(--lv5)}
+  .lv-row .head{display:flex; align-items:baseline; gap:10px; margin-bottom:5px}
+  .lv-row .star{font-weight:800; font-size:1rem}
+  .lv-row .pts{margin-left:auto; font-weight:800; font-size:.95rem}
+  .lv-row .items{font-size:.92rem; line-height:1.7}
+  .lv-row .grade{font-size:.78rem; color:#8a7f6c; margin-top:4px}
+
+  details.answer{
+    background:#fff5f2; border:2px dashed var(--lv4); border-radius:14px; padding:14px 16px;
+    margin-top:16px;
+  }
+  details.answer summary{font-weight:800; cursor:pointer; color:var(--lv4)}
+  details.answer .a-item{margin-top:10px; font-size:.92rem; line-height:1.7; padding-left:6px; border-left:3px solid var(--line)}
+  details.answer .a-item b{color:var(--ink)}
+
+  .note{font-size:.85rem; color:#7a6f5c; line-height:1.7; margin-top:14px}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px}
+
+  @media print{
+    header, .tabs, .toolbar, .team-row .btn, .overlay, .doc-switch{display:none !important}
+    body{background:#fff}
+    .panel{display:block !important}
+    .add-box{display:block !important}
+    .doc, .lv-row, .found-item{box-shadow:none}
+  }
+  @media(max-width:520px){
+    .doc{font-size:1rem; line-height:2}
+    header .sub{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="mag">📖</span> 名編集者！！ 重版出来をめざせ！</div>
+  <div class="sub">読み手をまよわせるポイントを直して、増刷される文章に！</div>
+  <nav class="tabs">
+    <button data-tab="game" class="on">赤入れする</button>
+    <button data-tab="guide">直しどころレベル表</button>
+    <button data-tab="answer" id="answerTab" style="display:none">先生用</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ===== GAME ===== -->
+  <section class="panel on" id="game">
+    <div id="docSwitch" class="doc-switch">
+      <button data-doc="practice" class="on">1時間目・練習</button>
+      <button data-doc="honban">2時間目・本番</button>
+    </div>
+    <div class="team-row">
+      <label>チーム名</label>
+      <input id="teamName" placeholder="れい：3班" />
+      <div class="score-badge">重版ポイント <span id="score">0</span></div>
+    </div>
+
+    <div class="doc">
+      <div class="title">▼ 桜井さんの提案文（直す前の原稿）</div>
+      <div class="lead">直したいところを タップ すると、赤入れメモが書けるよ。<br>「見つけた・なぜまよう・どう直す」がそろうと 重版ポイント になる！</div>
+      <div id="passage"></div>
+    </div>
+
+    <div class="found-list" id="foundList"></div>
+
+    <div class="add-box" id="addBox">
+      <div class="add-head">✒️ 重版で書き足す一文（3時間目）</div>
+      <div class="add-lead">見つけた直しどころをもとに、桜井さんの原稿に足すとよい一文を書いてみよう。<br>ノートに書いてもOK。ここに打ってもOK。</div>
+      <textarea id="addText" placeholder="れい：たとえば、SDGsの14「海の豊かさを守ろう」は、海に流れこむプラスチックごみと深くかかわっています。"></textarea>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn ghost mini" id="resetBtn">ぜんぶ消す</button>
+      <button class="btn ghost mini" id="printBtn">赤入れメモを印刷</button>
+    </div>
+    <p class="note">この端末に自動で保存されるよ。閉じてもチームの記録は残ります。</p>
+  </section>
+
+  <!-- ===== LEVEL GUIDE ===== -->
+  <section class="panel" id="guide">
+    <div class="lv-guide" id="lvGuide"></div>
+    <p class="note">レベルが高いほど 見つけにくくて、6年生で新しく習う 大事なところ。<br>むずかしい直しどころを直せるほど、重版ポイントが高いよ。</p>
+  </section>
+
+  <!-- ===== TEACHER ===== -->
+  <section class="panel" id="answer">
+    <div class="doc">
+      <div class="title">仕込んだ直しどころ（答え）</div>
+      <div class="lead">元の桜井文はよくできているので、教師が意図的に穴を開けた版です。手元の教科書と照らして微調整してください。数字（トン数・基数）は教科書の表記に合わせて。</div>
+      <div id="answerBody"></div>
+    </div>
+    <p class="note">「先生用」タブは掲示・投影しないでください。児童には「赤入れする」と「直しどころレベル表」だけ見せます。</p>
+  </section>
+</main>
+
+<!-- ===== MODAL ===== -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="mQuote">直したいところ</h3>
+    <div class="q" id="mHint">名編集者の3つの目でチェック</div>
+
+    <label>① どんな直し？（レベルをえらぶ）</label>
+    <div class="lv-picker" id="lvPicker">
+      <button data-lv="1">★1</button>
+      <button data-lv="2">★2</button>
+      <button data-lv="3">★3</button>
+      <button data-lv="4">★4</button>
+      <button data-lv="5">★5</button>
+    </div>
+
+    <label>② なぜ読み手がまよう？</label>
+    <textarea id="mWhy" placeholder="読み手は……と思ってしまう"></textarea>
+
+    <label>③ どう直す？</label>
+    <textarea id="mFix" placeholder="……に直すと わかりやすい"></textarea>
+
+    <div class="actions">
+      <button class="btn ghost" id="mCancel">やめる</button>
+      <button class="btn primary" id="mSave">赤入れメモに書く</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== データ ======
+// 原稿は2本。1時間目=練習（給食）、2時間目=本番（桜井文）。
+// bug:true が仕込んだ直しどころ。hint は児童向けの問い。lv は想定レベル。
+
+const DOCS = {
+  practice: {
+    label: "1時間目・練習（給食の食べ残し）",
+    title: "▼ 田中さんの提案文（練習の原稿）",
+    chunks: [
+      {t:"ぼくは、給食の食べ残しを念らすことを提案します。", bug:true, lv:1,
+        hint:"「念らす」？　この漢字、あってる？"},
+      {t:"先生から聞いた話では、", bug:true, lv:4,
+        hint:"どの先生が、いつ言った話かな？　読み手はたしかめられる？"},
+      {t:"うちの学校では毎日たくさんの給食が残されています。", bug:true, lv:5,
+        hint:"「たくさん」ってどれくらい？　読み手は多いのか少ないのか分かる？（具体的？）"},
+      {t:"食べ残しは、もったいないだけでなく、ごみをふやす原因にもなります。", bug:false, lv:0, hint:""},
+      {t:"だから、すききらいをせずに食べることが大切だと思う。", bug:true, lv:2,
+        hint:"文の終わり方、ほかの文とそろってる？"},
+      {t:"みんなで食べ残しをへらしましょう", bug:true, lv:1,
+        hint:"文の終わり、なにか足りない？"},
+      {t:"。", bug:false, lv:0, hint:""}
+    ],
+    whole: {hint:"はじめ・中・おわりで、まとまりごとに 分かれている？（段落）"},
+    answers: [
+      {lv:1, q:"「念らす」", a:"正しくは「減らす」。読みが同じ字への誤変換。最後の「へらしましょう」と見比べると気づける。"},
+      {lv:4, q:"「先生から聞いた話では」", a:"だれの・いつの話か分からず、読み手が確かめられない。引用のしかた（レベル4）。"},
+      {lv:5, q:"「たくさんの給食が残されています」", a:"具体が足りない。「たくさん」が数や量で書かれておらず、読み手は多いのか分からない。伝えたいことを具体的に（レベル5）。※練習では軽めの1問だけ。本丸は2時間目の桜井文で。"},
+      {lv:2, q:"「大切だと思う。」", a:"ほかの文が「です・ます」なのにここだけ「思う」。文末表現の不統一（レベル2）。"},
+      {lv:1, q:"最後の丸（。）", a:"「へらしましょう」に句点（。）が抜けている。"},
+      {lv:3, q:"文章全体が1段落", a:"まとまりごとに段落が分かれていない。構成（レベル3）。全体を見て気づかせる。"}
+    ]
+  },
+  honban: {
+    label: "2時間目・本番（桜井さん）",
+    title: "▼ 桜井さんの提案文（直す前の原稿）",
+    chunks: [
+      {t:"プラスチックごみを増らすことは、", bug:true, lv:1,
+        hint:"「増らす」？　この漢字、意味が反対になってない？"},
+      {t:"SDGsの目標と深くかかわっています。", bug:true, lv:5,
+        hint:"「SDGsの目標」と深く関わっている、って言い切ってるけど、どの目標と、どう関わっているの？　読み手はわかる？"},
+      {t:"ぼくは、新聞を読んで、", bug:true, lv:4,
+        hint:"どの新聞の、いつの話かな？　読み手はたしかめられる？"},
+      {t:"国内のプラスチックごみが年間800万トンもあると知り、おどろきました。", bug:true, lv:5,
+        hint:"「800万トン」と「おどろきました」、本当のことと 自分の気もちが 分かれて読める？"},
+      {t:"なんと、東京スカイツリー200基分以上の重さだそうです。", bug:false, lv:0, hint:""},
+      {t:"商品の包装が簡素になったり、以前は無料だったレジ袋が有料化されたりしました", bug:false, lv:0, hint:""},
+      {t:"が、それだけにたよっていてはいけないと思う。", bug:true, lv:2,
+        hint:"文の終わり方、ほかの文とそろってる？"},
+      {t:"みんなでプラスチックごみを減らしましょう", bug:true, lv:1,
+        hint:"文の終わり、なにか足りない？"},
+      {t:"。", bug:false, lv:0, hint:""}
+    ],
+    whole: {hint:"はじめ・中・おわりで、まとまりごとに 分かれている？（段落）"},
+    answers: [
+      {lv:1, q:"「増らす」", a:"教科書では「減らす」。反対の意味の「増」に変えた誤字。パッと見で「増やすの？」と混乱する。最後の文の「減らしましょう」と見比べると気づける。"},
+      {lv:5, q:"「SDGsの目標と深くかかわっています」", a:"もう一つの本丸。SDGsの目標と関わっていると言い切っているが、17ある目標のどれと、どう関わるのかが書かれていない。言葉は立派だが中身が具体的でない。伝えたいことを具体的に（レベル5）。「どの目標？どうして？」を補うことが、3時間目の『書き加える』活動の入口になる。"},
+      {lv:1, q:"文の終わりの丸（。）", a:"最後の文「減らしましょう」に句点（。）が抜けている。"},
+      {lv:2, q:"「思う。」", a:"ほかの文が「です・ます」なのにここだけ「思う」。文末表現の不統一。教科書は「思います」。"},
+      {lv:4, q:"「新聞を読んで」", a:"引用元があいまい。いつの・どの新聞かが分からず、読み手が確かめられない。引用のしかた（レベル4）。"},
+      {lv:5, q:"「800万トンもあると知り、おどろきました」", a:"本丸。事実（800万トン）と意見（おどろいた）が地続き。どこまでが事実でどこからが気持ちか、読み手が分けて読めない。事実と意見の区別（レベル5）。"},
+      {lv:3, q:"文章全体が1段落", a:"はじめ・中・おわりのまとまりで段落が分かれていない。構成（レベル3）。児童には全体を見て気づかせる。"}
+    ]
+  }
+};
+
+// 現在の原稿（保存された選択があればそれ、なければ練習）
+let CHUNKS, WHOLE, ANSWERS;
+
+const LEVELS = {
+  1:{pts:1, star:"★☆☆☆☆", name:"すぐ見つかる直し", grade:"2年生で習ったところ",
+     items:"誤字・脱字、まちがった漢字、「は・を・へ」、点（、）や丸（。）"},
+  2:{pts:2, star:"★★☆☆☆", name:"よく見ると気づく直し", grade:"4年生で習ったところ",
+     items:"文の終わり方（です・ます／だ・である）がそろっているか"},
+  3:{pts:3, star:"★★★☆☆", name:"かくれた直し", grade:"4年生で習ったところ",
+     items:"まとまりごとに段落が分かれているか、読む相手や目的に合っているか"},
+  4:{pts:4, star:"★★★★☆", name:"なかなか気づけない直し", grade:"6年生の大事なところ",
+     items:"文と文のつながり（話がとぶ）、引用のしかた（どこから持ってきた話か）"},
+  5:{pts:5, star:"★★★★★", name:"名編集者だけが気づく直し", grade:"6年生の いちばん大事なところ",
+     items:"本当のこと（事実）と、自分の考え（意見・感想）が分けて書けているか。伝えたいことが具体的か"}
+};
+
+// ====== 状態（端末内保存・原稿ごと） ======
+const KEY = "meitantei_v2";
+let store = loadStore();
+function loadStore(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if(s && s.docs){ if(typeof s.addText!=="string") s.addText=""; return s; }
+  }catch(e){}
+  return { current:"practice", team:"", docs:{ practice:[], honban:[] }, addText:"" };
+}
+function saveStore(){ localStorage.setItem(KEY, JSON.stringify(store)); }
+
+// 現在の原稿をセット
+function setDoc(key){
+  store.current = key;
+  const d = DOCS[key];
+  CHUNKS = d.chunks; WHOLE = d.whole; ANSWERS = d.answers;
+  saveStore();
+}
+setDoc(store.current);
+
+// 現在の原稿の発見リストへの参照
+function foundArr(){ return store.docs[store.current]; }
+
+// ====== 画面づくり ======
+const passage = document.getElementById("passage");
+const docTitle = document.querySelector("#game .doc .title");
+
+function buildPassage(){
+  passage.innerHTML = "";
+  docTitle.textContent = DOCS[store.current].title;
+  CHUNKS.forEach((c, i)=>{
+    const span = document.createElement("span");
+    span.className = "chunk";
+    span.textContent = c.t;
+    span.dataset.i = i;
+    span.addEventListener("click", ()=> openModal(i, c.t, c.hint));
+    passage.appendChild(span);
+  });
+}
+buildPassage();
+
+// 全体（段落・構成）リンクを文末に添える
+const wholeBtn = document.createElement("div");
+wholeBtn.className = "hint";
+wholeBtn.innerHTML = '👉 <a href="#" id="wholeLink" style="color:var(--lv3);font-weight:700">原稿ぜんたいを見て気になるところ</a> もタップできるよ';
+passage.parentElement.appendChild(wholeBtn);
+document.getElementById("wholeLink").addEventListener("click", (e)=>{
+  e.preventDefault();
+  openModal("whole", "原稿ぜんたい", WHOLE.hint);
+});
+
+// レベル表
+const lvGuide = document.getElementById("lvGuide");
+[1,2,3,4,5].forEach(lv=>{
+  const L = LEVELS[lv];
+  const row = document.createElement("div");
+  row.className = "lv-row"; row.dataset.lv = lv;
+  row.innerHTML = `
+    <div class="head">
+      <span class="star">${L.star}</span>
+      <span>${L.name}</span>
+      <span class="pts">${L.pts}てん</span>
+    </div>
+    <div class="items">${L.items}</div>
+    <div class="grade">${L.grade}</div>`;
+  lvGuide.appendChild(row);
+});
+
+// 答え（原稿ごとに描き直す）
+const answerBody = document.getElementById("answerBody");
+function buildAnswers(){
+  answerBody.innerHTML = "";
+  ANSWERS.forEach(a=>{
+    const d = document.createElement("div");
+    d.style.cssText = "margin-top:12px;line-height:1.9;font-size:.95rem";
+    d.innerHTML = `<b style="color:var(--lv${a.lv})">レベル${a.lv}</b>　<b>${a.q}</b><br>${a.a}`;
+    answerBody.appendChild(d);
+  });
+}
+buildAnswers();
+
+// ====== モーダル ======
+const overlay = document.getElementById("overlay");
+const mQuote = document.getElementById("mQuote");
+const mHint = document.getElementById("mHint");
+const mWhy = document.getElementById("mWhy");
+const mFix = document.getElementById("mFix");
+const lvPicker = document.getElementById("lvPicker");
+let curIndex = null, curLv = null;
+
+function openModal(i, quote, hint){
+  curIndex = i; curLv = null;
+  mQuote.textContent = "「" + quote + "」";
+  mHint.textContent = hint || "名編集者の3つの目でチェック";
+  mWhy.value = ""; mFix.value = "";
+  [...lvPicker.children].forEach(b=>b.classList.remove("sel"));
+  overlay.classList.add("on");
+}
+function closeModal(){ overlay.classList.remove("on"); }
+
+[...lvPicker.children].forEach(b=>{
+  b.addEventListener("click", ()=>{
+    [...lvPicker.children].forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel");
+    curLv = +b.dataset.lv;
+  });
+});
+document.getElementById("mCancel").addEventListener("click", closeModal);
+overlay.addEventListener("click", e=>{ if(e.target===overlay) closeModal(); });
+
+document.getElementById("mSave").addEventListener("click", ()=>{
+  if(!curLv){ alert("①レベルをえらんでね"); return; }
+  if(!mWhy.value.trim() || !mFix.value.trim()){
+    alert("②なぜまよう？と ③どう直す？ の両方を書くと 重版ポイントになるよ"); return;
+  }
+  foundArr().push({
+    index: curIndex,
+    quote: mQuote.textContent,
+    lv: curLv,
+    why: mWhy.value.trim(),
+    fix: mFix.value.trim()
+  });
+  saveStore(); render();
+  closeModal();
+});
+
+// ====== 描画 ======
+const foundList = document.getElementById("foundList");
+const scoreEl = document.getElementById("score");
+const teamInput = document.getElementById("teamName");
+
+teamInput.value = store.team || "";
+teamInput.addEventListener("input", ()=>{ store.team = teamInput.value; saveStore(); });
+
+function render(){
+  const found = foundArr();
+  // 赤入れマーク
+  document.querySelectorAll(".chunk").forEach(el=>el.classList.remove("found"));
+  found.forEach(f=>{
+    if(f.index!=="whole"){
+      const el = document.querySelector(`.chunk[data-i="${f.index}"]`);
+      if(el) el.classList.add("found");
+    }
+  });
+  // リスト
+  foundList.innerHTML = "";
+  let total = 0;
+  found.forEach((f, idx)=>{
+    total += LEVELS[f.lv].pts;
+    const item = document.createElement("div");
+    item.className = "found-item";
+    item.innerHTML = `
+      <span class="lv-chip" data-lv="${f.lv}">★${f.lv}・${LEVELS[f.lv].pts}てん</span>
+      <div class="body">
+        <div class="quote">${f.quote}</div>
+        <div class="why">🤔 ${f.why}</div>
+        <div class="fix">✏️ ${f.fix}</div>
+      </div>
+      <button class="del" data-del="${idx}" title="消す">✕</button>`;
+    foundList.appendChild(item);
+  });
+  scoreEl.textContent = total;
+  foundList.querySelectorAll("[data-del]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      foundArr().splice(+b.dataset.del, 1);
+      saveStore(); render();
+    });
+  });
+}
+
+document.getElementById("resetBtn").addEventListener("click", ()=>{
+  if(confirm("この原稿の記録をぜんぶ消す？")){
+    store.docs[store.current] = []; saveStore(); render();
+  }
+});
+document.getElementById("printBtn").addEventListener("click", ()=>window.print());
+
+// ====== 原稿の切り替え ======
+function switchDoc(key){
+  setDoc(key);
+  buildPassage();
+  buildAnswers();
+  render();
+  updateAddBox();
+  // ボタンの見た目更新
+  document.querySelectorAll("#docSwitch button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.doc===key);
+  });
+}
+
+// ====== 先生用タブの隠しコマンド（タイトルを素早く3回タップ） ======
+const answerTab = document.getElementById("answerTab");
+const secretLogo = document.querySelector("header .logo");
+let tapCount = 0, tapTimer = null;
+secretLogo.style.cursor = "default";
+secretLogo.addEventListener("click", ()=>{
+  tapCount++;
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(()=>{ tapCount = 0; }, 800); // 800ミリ秒以内に3回
+  if(tapCount >= 3){
+    tapCount = 0;
+    if(answerTab.style.display === "none"){
+      answerTab.style.display = "";
+      answerTab.click(); // 出したらすぐ開く
+    }else{
+      // もう一度3回で隠す（子どもが来たらサッと消せる）
+      answerTab.style.display = "none";
+      document.querySelector('.tabs button[data-tab="game"]').click();
+    }
+  }
+});
+
+// ====== タブ ======
+document.querySelectorAll(".tabs button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    document.getElementById(b.dataset.tab).classList.add("on");
+  });
+});
+
+// 書き足しメモ欄
+const addBox = document.getElementById("addBox");
+const addText = document.getElementById("addText");
+addText.value = store.addText || "";
+addText.addEventListener("input", ()=>{ store.addText = addText.value; saveStore(); });
+function updateAddBox(){
+  // 本番（桜井文）のときだけ表示
+  addBox.classList.toggle("on", store.current==="honban");
+}
+updateAddBox();
+
+// 原稿切り替えボタン
+document.querySelectorAll("#docSwitch button").forEach(b=>{
+  b.classList.toggle("on", b.dataset.doc===store.current);
+  b.addEventListener("click", ()=> switchDoc(b.dataset.doc));
+});
+
+render();
+</script>
+</body>
+</html>
