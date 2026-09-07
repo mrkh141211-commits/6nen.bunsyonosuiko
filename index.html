@@ -291,8 +291,8 @@
     <div id="submitArea" class="submit-area" style="display:none">
       <div class="doc">
         <div class="title">✍️ 桜井さんの提案文を、清書しよう（3時間目）</div>
-        <div class="lead">見つけた直しどころをぜんぶ直して、読み手に伝わる提案文に書き直そう。<br>赤入れタブの「本番」で見つけたことを思い出しながら。ノートに書いてから写してもOK。</div>
-        <input id="subName" class="sub-name" placeholder="名前 or チーム名（れい：3班 さくら）" />
+        <div class="lead">見つけた直しどころをぜんぶ直して、読み手に伝わる提案文に書き直そう。<br>赤入れタブの「本番」で見つけたことを思い出しながら、自分の力で清書しよう。ノートに書いてから写してもOK。</div>
+        <input id="subName" class="sub-name" placeholder="名前（れい：山田はると）" />
         <textarea id="subText" class="sub-text" placeholder="ここに、直した提案文をぜんぶ書こう。&#10;&#10;れい：プラスチックごみを減らすことは、SDGsの14「海の豊かさを守ろう」と深く関わっています。……"></textarea>
         <div class="sub-actions">
           <button class="btn primary" id="subBtn">みんなに提出する</button>
@@ -302,7 +302,13 @@
 
       <div class="board-head">
         <span>📚 みんなの提案文（あいことば：<b id="roomLabel"></b>）</span>
-        <span id="boardCount" class="board-count"></span>
+        <span style="display:flex; align-items:center; gap:8px;">
+          <span id="boardCount" class="board-count"></span>
+          <select id="boardSort" style="font:inherit; font-size:13px; padding:4px 8px; border:0.5px solid #d8cfbd; border-radius:8px; background:#fff;">
+            <option value="new">新しい順</option>
+            <option value="name">名前順</option>
+          </select>
+        </span>
       </div>
       <div id="board" class="board"></div>
     </div>
@@ -720,6 +726,9 @@ const subBtn     = document.getElementById("subBtn");
 const subMsg     = document.getElementById("subMsg");
 const boardEl    = document.getElementById("board");
 const boardCount = document.getElementById("boardCount");
+const boardSort  = document.getElementById("boardSort");
+let boardData = [];
+if(boardSort) boardSort.addEventListener("change", drawBoard);
 
 // Firebase を初期化（SDKが読めていれば）
 function initFirebase(){
@@ -764,16 +773,21 @@ function joinRoom(){
   // 前の購読を解除
   if(boardRef) boardRef.off();
   boardRef = fbDB.ref("rooms/" + room + "/posts");
-  // 新しい順に最大200件、リアルタイムで受信
   boardRef.limitToLast(200).on("value", (snap)=>{
     const data = snap.val() || {};
-    const arr = Object.keys(data).map(k=>({ id:k, ...data[k] }));
-    arr.sort((a,b)=> (b.t||0) - (a.t||0)); // 新しい順
-    renderBoard(arr);
+    boardData = Object.keys(data).map(k=>({ id:k, ...data[k] }));
+    drawBoard();
   }, (err)=>{
     console.error(err);
     boardEl.innerHTML = '<div class="board-empty">共有の読み込みに失敗しました。あいことばと接続を確認してください。</div>';
   });
+}
+function drawBoard(){
+  const arr = boardData.slice();
+  const mode = boardSort ? boardSort.value : "new";
+  if(mode === "name"){ arr.sort((a,b)=> (a.name||"").localeCompare(b.name||"","ja")); }
+  else { arr.sort((a,b)=> (b.t||0) - (a.t||0)); }
+  renderBoard(arr);
 }
 
 // ボードを描く
@@ -840,5 +854,6 @@ roomJoin && roomJoin.addEventListener("click", joinRoom);
 subBtn && subBtn.addEventListener("click", submitPost);
 
 render();
+</script>
 </body>
 </html>
