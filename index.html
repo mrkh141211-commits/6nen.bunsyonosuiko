@@ -862,6 +862,22 @@ if(subText) subText.value = store.subDraft || "";
 if(store.room){ roomInput.value = store.room; }
 
 roomJoin && roomJoin.addEventListener("click", joinRoom);
+  function renderMyNotes(){
+  const el = document.getElementById("myNotesList");
+  if(!el) return;
+  const notes = (store.docs && store.docs.honban) ? store.docs.honban : [];
+  if(!notes.length){
+    el.innerHTML = '<div class="my-note-empty">本番タブでの赤入れメモがまだありません。</div>';
+    return;
+  }
+  el.innerHTML = "";
+  notes.forEach(f=>{
+    const d = document.createElement("div");
+    d.className = "my-note-item";
+    d.innerHTML = '<div class="q">★'+f.lv+'　'+f.quote+'</div><div class="w">🤔 '+f.why+'</div><div class="f">✏️ '+f.fix+'</div>';
+    el.appendChild(d);
+  });
+}
 subBtn && subBtn.addEventListener("click", submitPost);
 
 render();
