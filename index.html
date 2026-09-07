@@ -680,6 +680,7 @@ document.querySelectorAll(".tabs button").forEach(b=>{
     document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
     b.classList.add("on");
     document.getElementById(b.dataset.tab).classList.add("on");
+    if(b.dataset.tab==="submit") renderMyNotes();
   });
 });
 
