@@ -85,7 +85,8 @@
   .board-empty{grid-column:1/-1; text-align:center; color:#a89a82; padding:30px 0; font-size:.9rem}
 
   .room-row{margin-bottom:16px}
-　.my-notes{margin:10px 0; border:0.5px solid #d8cfbd; border-radius:10px; background:#faf6ec;}
+
+  .my-notes{margin:10px 0; border:0.5px solid #d8cfbd; border-radius:10px; background:#faf6ec;}
   .my-notes summary{cursor:pointer; padding:10px 12px; font-size:13px; font-weight:500; color:#20303a;}
   .my-notes-list{padding:0 12px 10px;}
   .my-note-item{background:#fff; border:0.5px solid #d8cfbd; border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:12px; line-height:1.7;}
@@ -93,6 +94,15 @@
   .my-note-item .w{color:#5a5040;}
   .my-note-item .f{color:#2b6a4a;}
   .my-note-empty{font-size:12px; color:#a89a82; padding:4px 0;}
+  .vote-control{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px; padding:10px; background:#fff3d9; border:2px dashed #e6a94c; border-radius:12px;}
+  .vote-control .vc-label{font-weight:700; font-size:12px; color:#a06a00; margin-right:2px;}
+  .vote-btn{margin-top:8px; width:100%; font:inherit; font-size:13px; font-weight:500; cursor:pointer; border:2px solid #5bb98c; background:#fff; color:#2b7a55; border-radius:10px; padding:8px;}
+  .vote-btn.voted{background:#5bb98c; color:#fff;}
+  .vote-btn.own{border-color:#d8cfbd; color:#a89a82; cursor:default;}
+  .vote-btn:disabled{opacity:.6; cursor:default;}
+  .vote-badge{font-size:13px; color:#d96a4a; font-weight:800;}
+  .board-card.winner{border:3px solid #f6c343; box-shadow:0 0 0 4px rgba(246,195,67,.25); animation:pop .5s ease;}
+  @keyframes pop{0%{transform:scale(.8);opacity:0;}60%{transform:scale(1.05);}100%{transform:scale(1);opacity:1;}}
   .doc-switch{display:flex; gap:8px; margin-bottom:12px}
   .doc-switch button{
     font:inherit; font-weight:700; font-size:.9rem; cursor:pointer;
@@ -300,10 +310,6 @@
         <div class="title">✍️ 桜井さんの提案文を、清書しよう（3時間目）</div>
         <div class="lead">見つけた直しどころをぜんぶ直して、読み手に伝わる提案文に書き直そう。<br>赤入れタブの「本番」で見つけたことを思い出しながら、自分の力で清書しよう。ノートに書いてから写してもOK。</div>
         <input id="subName" class="sub-name" placeholder="名前（れい：山田はると）" />
-        <details id="myNotes" class="my-notes">
-          <summary>🔍 自分の赤入れメモを見る（本番で見つけた直しどころ）</summary>
-          <div id="myNotesList" class="my-notes-list"></div>
-        </details>
         <textarea id="subText" class="sub-text" placeholder="ここに、直した提案文をぜんぶ書こう。&#10;&#10;れい：プラスチックごみを減らすことは、SDGsの14「海の豊かさを守ろう」と深く関わっています。……"></textarea>
         <div class="sub-actions">
           <button class="btn primary" id="subBtn">みんなに提出する</button>
@@ -311,8 +317,16 @@
         </div>
       </div>
 
+      <div id="voteControl" class="vote-control" style="display:none">
+        <span class="vc-label">先生用</span>
+        <button class="btn mini" id="voteNormalBtn">通常</button>
+        <button class="btn mini" id="voteStartBtn">🗳 投票モード</button>
+        <button class="btn mini primary" id="voteResultBtn">🎉 開票する</button>
+        <button class="btn mini ghost" id="voteResetBtn">票をリセット</button>
+      </div>
+
       <div class="board-head">
-        <span>📚 みんなの提案文（あいことば：<b id="roomLabel"></b>）</span>
+        <span id="boardTitle">📚 みんなの提案文（あいことば：<b id="roomLabel"></b>）</span>
         <span style="display:flex; align-items:center; gap:8px;">
           <span id="boardCount" class="board-count"></span>
           <select id="boardSort" style="font:inherit; font-size:13px; padding:4px 8px; border:0.5px solid #d8cfbd; border-radius:8px; background:#fff;">
@@ -670,6 +684,7 @@ secretLogo.addEventListener("click", ()=>{
       answerTab.style.display = "none";
       document.querySelector('.tabs button[data-tab="game"]').click();
     }
+    if(typeof updateVoteControlVisibility==="function") updateVoteControlVisibility();
   }
 });
 
@@ -739,6 +754,12 @@ const boardEl    = document.getElementById("board");
 const boardCount = document.getElementById("boardCount");
 const boardSort  = document.getElementById("boardSort");
 let boardData = [];
+let modeRef = null, votesRef = null;
+let boardMode = "normal";
+let votesData = {};
+// この端末のID（自分の作品判定・1人3票の管理に使う）
+let myId = localStorage.getItem("meihen_myid");
+if(!myId){ myId = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); localStorage.setItem("meihen_myid", myId); }
 if(boardSort) boardSort.addEventListener("change", drawBoard);
 
 // Firebase を初期化（SDKが読めていれば）
@@ -792,36 +813,107 @@ function joinRoom(){
     console.error(err);
     boardEl.innerHTML = '<div class="board-empty">共有の読み込みに失敗しました。あいことばと接続を確認してください。</div>';
   });
+  if(modeRef) modeRef.off();
+  modeRef = fbDB.ref("rooms/" + room + "/mode");
+  modeRef.on("value", (snap)=>{ boardMode = snap.val() || "normal"; drawBoard(); });
+  if(votesRef) votesRef.off();
+  votesRef = fbDB.ref("rooms/" + room + "/votes");
+  votesRef.on("value", (snap)=>{ votesData = snap.val() || {}; drawBoard(); });
 }
 function drawBoard(){
   const arr = boardData.slice();
-  const mode = boardSort ? boardSort.value : "new";
-  if(mode === "name"){ arr.sort((a,b)=> (a.name||"").localeCompare(b.name||"","ja")); }
-  else { arr.sort((a,b)=> (b.t||0) - (a.t||0)); }
-  renderBoard(arr);
+  // 通常モード：並べ替えて名前あり表示
+  if(boardMode === "normal"){
+    const mode = boardSort ? boardSort.value : "new";
+    if(mode === "name"){ arr.sort((a,b)=> (a.name||"").localeCompare(b.name||"","ja")); }
+    else { arr.sort((a,b)=> (b.t||0) - (a.t||0)); }
+    renderBoard(arr, "normal");
+  }
+  // 投票モード：無記名・シャッフル・投票ボタン
+  else if(boardMode === "vote"){
+    const shuffled = shuffleStable(arr);
+    renderBoard(shuffled, "vote");
+  }
+  // 開票モード：票数順・名前公開・エフェクト
+  else if(boardMode === "result"){
+    arr.sort((a,b)=> voteCount(b.id) - voteCount(a.id));
+    renderBoard(arr, "result");
+  }
 }
 
+// idを種にした安定シャッフル（全員同じ並び順になる）
+function shuffleStable(arr){
+  return arr.map(p=>({p, k: hashStr(p.id)})).sort((a,b)=> a.k - b.k).map(x=>x.p);
+}
+function hashStr(s){ let h=0; s=s||""; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))|0; } return h; }
+function voteCount(postId){
+  const v = votesData[postId]; return v ? Object.keys(v).length : 0;
+}
+function myVoteCount(){
+  let n=0; for(const pid in votesData){ if(votesData[pid] && votesData[pid][myId]) n++; } return n;
+}
+function labelOf(i){ return String.fromCharCode(65 + (i%26)); } // A,B,C...
+
 // ボードを描く
-function renderBoard(arr){
+function renderBoard(arr, mode){
   boardCount.textContent = arr.length ? (arr.length + "件") : "";
   if(!arr.length){
     boardEl.innerHTML = '<div class="board-empty">まだ提出はありません。いちばん乗りしよう！</div>';
     return;
   }
   boardEl.innerHTML = "";
-  arr.forEach(p=>{
+  const remain = 3 - myVoteCount();
+  arr.forEach((p, i)=>{
     const card = document.createElement("div");
     card.className = "board-card";
+    if(mode==="result" && i===0) card.classList.add("winner");
+
     const who = document.createElement("div");
-    who.className = "who"; who.textContent = p.name || "名前なし";
+    who.className = "who";
+    if(mode==="vote"){ who.textContent = "さくひん " + labelOf(i); }
+    else if(mode==="result"){
+      who.textContent = (i===0?"🏆 ":"") + (p.name||"名前なし");
+      const badge = document.createElement("span");
+      badge.className="vote-badge"; badge.textContent = " " + voteCount(p.id) + "票";
+      who.appendChild(badge);
+    }
+    else { who.textContent = p.name || "名前なし"; }
+
     const txt = document.createElement("div");
     txt.className = "txt"; txt.textContent = p.text || "";
-    const time = document.createElement("div");
-    time.className = "time";
-    time.textContent = p.t ? new Date(p.t).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"}) : "";
-    card.appendChild(who); card.appendChild(txt); card.appendChild(time);
+    card.appendChild(who); card.appendChild(txt);
+
+    if(mode==="vote"){
+      const voted = votesData[p.id] && votesData[p.id][myId];
+      const mine = (p.owner === myId);
+      const btn = document.createElement("button");
+      btn.className = "vote-btn" + (voted?" voted":"");
+      if(mine){ btn.textContent = "自分の作品"; btn.disabled = true; btn.classList.add("own"); }
+      else if(voted){ btn.textContent = "✓ 投票ずみ（取消）"; }
+      else if(remain<=0){ btn.textContent = "3票つかいました"; btn.disabled = true; }
+      else { btn.textContent = "🖊 これに投票（あと"+remain+"）"; }
+      btn.addEventListener("click", ()=> toggleVote(p.id, p.owner));
+      card.appendChild(btn);
+    }
+    if(mode==="result"){
+      const time=document.createElement("div"); time.className="time";
+      time.textContent = voteCount(p.id) + "票";
+      // 既にbadgeで出してるので省略可。ここは順位を出す
+      time.textContent = (i+1) + "位";
+      card.appendChild(time);
+    }
     boardEl.appendChild(card);
   });
+}
+
+// 投票する／取り消す
+function toggleVote(postId, owner){
+  if(owner === myId){ alert("自分の作品には投票できないよ"); return; }
+  const ref = fbDB.ref("rooms/" + curRoom + "/votes/" + postId + "/" + myId);
+  const already = votesData[postId] && votesData[postId][myId];
+  if(already){ ref.remove(); return; }
+  if(myVoteCount() >= 3){ alert("投票は1人3票までだよ"); return; }
+  ref.set(true);
 }
 
 // 提出する
@@ -834,6 +926,7 @@ function submitPost(){
   boardRef.push({
     name: name || "名前なし",
     text: text,
+    owner: myId,
     t: Date.now()
   }).then(()=>{
     subMsg.textContent = "✓ 提出できました！";
@@ -862,7 +955,9 @@ if(subText) subText.value = store.subDraft || "";
 if(store.room){ roomInput.value = store.room; }
 
 roomJoin && roomJoin.addEventListener("click", joinRoom);
-  function renderMyNotes(){
+
+// 清書タブ：自分の本番赤入れメモを表示
+function renderMyNotes(){
   const el = document.getElementById("myNotesList");
   if(!el) return;
   const notes = (store.docs && store.docs.honban) ? store.docs.honban : [];
@@ -879,6 +974,53 @@ roomJoin && roomJoin.addEventListener("click", joinRoom);
   });
 }
 subBtn && subBtn.addEventListener("click", submitPost);
+
+// ====== 投票コントロール（先生用） ======
+const voteControl   = document.getElementById("voteControl");
+const boardTitle    = document.getElementById("boardTitle");
+function setMode(m){
+  if(!curRoom || !fbDB){ alert("先にあいことばで部屋に入ってね"); return; }
+  fbDB.ref("rooms/" + curRoom + "/mode").set(m);
+  if(m==="result") setTimeout(fireConfetti, 300);
+}
+document.getElementById("voteNormalBtn").addEventListener("click", ()=> setMode("normal"));
+document.getElementById("voteStartBtn").addEventListener("click", ()=> setMode("vote"));
+document.getElementById("voteResultBtn").addEventListener("click", ()=> setMode("result"));
+document.getElementById("voteResetBtn").addEventListener("click", ()=>{
+  if(!curRoom || !fbDB) return;
+  if(confirm("投票を全部リセットする？")){ fbDB.ref("rooms/" + curRoom + "/votes").remove(); }
+});
+
+// 先生モード（隠しタブ）が出ているときだけ投票コントロールを表示
+function updateVoteControlVisibility(){
+  const teacherOn = answerTab.style.display !== "none";
+  voteControl.style.display = teacherOn ? "flex" : "none";
+}
+
+// タイトルをモードで変える
+const _origDrawBoard = drawBoard;
+drawBoard = function(){
+  _origDrawBoard();
+  if(boardTitle){
+    if(boardMode==="vote") boardTitle.innerHTML = "🗳 とうひょう中！ いいと思う作品にいれよう（1人3票）";
+    else if(boardMode==="result") boardTitle.innerHTML = "🎉 けっか発表！";
+    else boardTitle.innerHTML = '📚 みんなの提案文（あいことば：<b id="roomLabel">'+(curRoom||"")+'</b>）';
+  }
+  if(boardSort) boardSort.style.display = (boardMode==="normal") ? "" : "none";
+};
+
+// 開票エフェクト（紙吹雪）
+function fireConfetti(){
+  const colors=["#6fa8dc","#5bb98c","#e6a94c","#d96a4a","#9b59b6","#f6c343"];
+  for(let i=0;i<80;i++){
+    const c=document.createElement("div");
+    c.style.cssText="position:fixed;top:-10px;left:"+Math.random()*100+"vw;width:10px;height:14px;z-index:9999;pointer-events:none;background:"+colors[i%colors.length]+";opacity:.9;border-radius:2px;transform:rotate("+Math.random()*360+"deg);";
+    document.body.appendChild(c);
+    const dur=2000+Math.random()*1500;
+    c.animate([{transform:c.style.transform+" translateY(0)"},{transform:"translateY(105vh) rotate("+Math.random()*720+"deg)"}],{duration:dur,easing:"cubic-bezier(.3,.6,.5,1)"});
+    setTimeout(()=>c.remove(), dur);
+  }
+}
 
 render();
 </script>
